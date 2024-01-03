@@ -4,7 +4,7 @@ const jwt = require("jsonwebtoken");
 const app = express();
 
 const PORT = process.env.PORT || 4000;
-const JWT_SECRET = "123456";
+const JWT_SECRET = "jwt_secret";
 
 app.use(express.json());
 
@@ -38,6 +38,12 @@ const userExists = (username, password) => {
   return user ? true : false;
 };
 
+app.get('/dummy-route', (req, res) => {
+  return res.json({
+    message: "Dummy Route"
+  })
+})
+
 app.post("/signin", (req, res) => {
   const { username, password } = req.body;
 
@@ -47,15 +53,45 @@ app.post("/signin", (req, res) => {
     });
   }
 
-  const token = jwt.sign({username: username}, JWT_SECRET);
+  const token = jwt.sign({ username }, JWT_SECRET);
 
-  return res.status(200).json(token);
+  return res.status(200).json({token}); // user gets back the token on succesffull signin and they can store or do something with it. and for future requests this token should be sent by the user.
 });
 
-// app.get('/users', authenticateUser, (req, res) => {
-//     console.log(req.user);
-//     res.json(APP_USERS);
-// });
+app.get('/users', (req, res) => {
+  const token = req.headers.authorization;
+
+  if (!token) {
+    return res.status(401).json({
+      message: 'Authorization token is missing',
+    });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    console.log(decoded, "DECODED");
+
+    // Ensure that the token is decoded successfully before proceeding
+    if (!decoded || !decoded.username) {
+      return res.status(401).json({
+        message: 'Invalid token',
+      });
+    }
+
+    const decodedUsername = decoded.username;
+    const users = APP_USERS.filter(user => user.username !== decodedUsername);
+
+    return res.status(200).json({
+      users: users,
+    });
+  } catch (error) {
+    console.error('Token verification failed:', error.message);
+    return res.status(401).json({
+      message: 'Invalid token',
+    });
+  }
+});
+
 
 /**
  * 3 end points in assignment
